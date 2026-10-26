@@ -1,6 +1,6 @@
 {
   "name": "edgeone-webdav",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "A WebDAV server running on EdgeOne Pages / Makers, backed by EdgeOne Blob storage",
@@ -8,10 +8,8 @@
     "node": ">=18"
   },
   "scripts": {
+    "build": "echo no build step",
     "test": "node --test test/",
     "dev": "node scripts/dev-server.mjs"
-  },
-  "dependencies": {
-    "@edgeone/pages-blob": "^0.0.18"
   }
 }

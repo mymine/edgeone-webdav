@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EdgeOne WebDAV · 部署自检</title>
+<style>
+  :root{color-scheme:light dark}
+  *{box-sizing:border-box}
+  body{font:14px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;margin:0;padding:40px 20px;background:#fafafa;color:#222}
+  @media (prefers-color-scheme:dark){body{background:#141414;color:#e6e6e6}.card{background:#1b1b1b;border-color:#2b2b2b}a{color:#6cb6ff}}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin:0 0 6px}
+  .sub{color:#888;font-size:13px;margin-bottom:22px}
+  .card{background:#fff;border:1px solid #eee;border-radius:14px;padding:16px 20px;margin-bottom:14px}
+  .row{display:flex;justify-content:space-between;gap:18px;padding:7px 0;border-bottom:1px dashed rgba(128,128,128,.18)}
+  .row:last-child{border-bottom:0}
+  .k{color:#888;white-space:nowrap}
+  .v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all;text-align:right}
+  .badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:500}
+  .ok{background:rgba(46,160,67,.15);color:#2ea043}
+  .bad{background:rgba(207,34,46,.15);color:#cf222e}
+  .wait{background:rgba(128,128,128,.15);color:#888}
+  code{background:rgba(128,128,128,.12);padding:1px 5px;border-radius:5px;font-size:12.5px}
+  pre{background:rgba(128,128,128,.1);padding:12px 14px;border-radius:10px;overflow:auto;font-size:12.5px;margin:8px 0 0}
+  .hint{font-size:12.5px;color:#888;margin-top:8px}
+  .btn{display:inline-block;margin-top:8px;padding:8px 16px;border-radius:9px;background:#2ea043;color:#fff;text-decoration:none;font-size:13px}
+  ol{margin:8px 0 0;padding-left:20px;font-size:13px}
+  li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>EdgeOne WebDAV</h1>
+  <div class="sub">部署自检 —— 这个页面是静态资源，<code>/ping</code> 是云函数。两者状态分开看，能一眼定位 404 出在哪一层。</div>
+
+  <div class="card" id="status">
+    <div class="row"><span class="k">静态页面</span><span class="v"><span class="badge ok">已加载</span></span></div>
+    <div class="row"><span class="k">云函数 (/ping)</span><span class="v" id="pingState"><span class="badge wait">检测中…</span></span></div>
+    <div class="row"><span class="k">Node 版本</span><span class="v" id="node">—</span></div>
+    <div class="row"><span class="k">挂载地址</span><span class="v" id="mount">—</span></div>
+    <div class="row"><span class="k">存储命名空间</span><span class="v" id="store">—</span></div>
+    <div class="row"><span class="k">认证</span><span class="v" id="auth">—</span></div>
+    <div class="row"><span class="k">已注入 DAV_* 变量</span><span class="v" id="keys">—</span></div>
+  </div>
+
+  <div class="card" id="davCard" style="display:none">
+    <div class="k">用 WebDAV 客户端连接</div>
+    <pre id="davPre"></pre>
+    <a class="btn" id="davLink" href="#">在浏览器里打开目录</a>
+    <div class="hint">Windows「映射网络驱动器」/ macOS Finder「连接服务器 ⌘K」/ rclone webdav / Cyberduck 均可。</div>
+  </div>
+
+  <div class="card" id="trouble" style="display:none">
+    <div class="k" style="color:#cf222e">云函数没有生效</div>
+    <div class="hint">静态页面能打开说明站点部署成功了，但 <code>/ping</code> 拿不到函数响应。逐条检查：</div>
+    <ol>
+      <li>仓库根目录下必须有 <code>cloud-functions/</code>（不是 <code>edgeone-webdav/cloud-functions/</code>，多一层就扫不到）</li>
+      <li>确认 <code>cloud-functions/dav/[[default]].js</code> 和 <code>cloud-functions/ping.js</code> 都在仓库里（平台检出时即扫描这些文件）</li>
+      <li>看构建日志有没有 <code>No server-handler detected</code>，有就说明函数入口没被识别</li>
+      <li>项目类型不能是「纯静态站点」，需要允许 Cloud Functions（Node.js）</li>
+      <li>部署完之后要重新部署一次，函数才会跟着新构建上线</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  function setBadge(el, cls, text) {
+    el.innerHTML = '<span class="badge ' + cls + '">' + text + '</span>';
+  }
+
+  fetch('/ping', { headers: { accept: 'application/json' } })
+    .then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function (data) {
+      setBadge($('pingState'), 'ok', '已生效');
+      $('node').textContent = (data.runtime && data.runtime.node) || '—';
+      $('mount').textContent = (data.route && data.route.mount) || '/dav';
+      $('store').textContent = (data.config && data.config.storeName) || '—';
+      $('keys').textContent = (data.config && data.config.davEnvKeys && data.config.davEnvKeys.length)
+        ? data.config.davEnvKeys.join(', ')
+        : '(无)';
+
+      var cfg = data.config || {};
+      var authed = !!(cfg.authConfigured || cfg.allowAnonymous);
+      setBadge($('auth'), authed ? 'ok' : 'bad', authed ? (cfg.authConfigured ? 'Basic Auth 已配置' : '匿名访问') : '未配置 DAV_USER / DAV_PASS');
+
+      if (authed) {
+        var mount = (data.route && data.route.mount) || '/dav';
+        $('davCard').style.display = '';
+        $('davPre').textContent = '地址: ' + mount + '\n用户名: <你的 DAV_USER>\n密码:   <你的 DAV_PASS>';
+        $('davLink').href = mount;
+        $('davLink').textContent = '在浏览器里打开 ' + mount;
+      } else {
+        $('trouble').style.display = '';
+        $('trouble').querySelector('.k').textContent = '还差一步：配置账号';
+        $('trouble').querySelector('.hint').innerHTML =
+          '到控制台「项目设置 → 环境变量」添加 <code>DAV_USER</code> 和 <code>DAV_PASS</code>，然后重新部署。在此之前 WebDAV 返回 503，不会把存储暴露在公网。';
+        $('trouble').querySelector('ol').style.display = 'none';
+      }
+    })
+    .catch(function (err) {
+      setBadge($('pingState'), 'bad', '不可达');
+      $('trouble').style.display = '';
+      console.error('[self-check]', err);
+    });
+})();
+</script>
+</body>
+</html>
