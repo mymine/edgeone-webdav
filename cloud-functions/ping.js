@@ -22,7 +22,7 @@ export default async function onRequest(context) {
   const result = {
     ok: true,
     service: 'edgeone-webdav',
-    version: '1.0.4',
+    version: '1.0.5',
     runtime: {
       node: typeof process !== 'undefined' ? process.version : 'unknown',
       platform: typeof process !== 'undefined' ? process.platform : 'unknown',

@@ -156,10 +156,11 @@ edgeone makers deploy   # 部署
 ├── public/
 │   └── index.html                   # 静态自检页（/）
 ├── cloud-functions/
+│   ├── [[default]].js               # ⚠️ 根级 catch-all（必须在这个位置，见下）
 │   ├── ping.js                      # /ping 自检 JSON
 │   └── dav/
 │       ├── index.js                 # /dav 与 /dav/
-│       ├── [[default]].js           # /dav/**（多级路径）
+│       ├── [[default]].js           # /dav/**（子目录这份是双保险）
 │       ├── _vendor/
 │       │   └── pages-blob.cjs       # @edgeone/pages-blob@0.0.18 的 dist 单文件（19 KB）
 │       └── _lib/
@@ -174,6 +175,12 @@ edgeone makers deploy   # 部署
 ```
 
 只有导出了 `onRequest` 的文件才会注册成路由，`_lib/` / `_vendor/` 下的模块不会被暴露。
+
+> **为什么 catch-all 必须在根级**：平台构建时会检查 `cloud-functions/[[default]].js` 是否存在，据此决定是否启用 server handler 模式。只放在子目录时，构建日志会出现
+> `[cli] No server-handler detected, generating routes.json for pure project`，
+> 这时**只有「文件名即路由」的函数生效**（如 `ping.js` → `/ping`），`/dav/**` 这类 catch-all 不会注册，
+> 访问 `/dav` 会拿到平台那句容易误解的 `404 : NOT_FOUND The site does not exist`。
+> 根级 catch-all 内部再按 `DAV_BASE` 前缀分发，所以不会影响 `/ping` 与静态首页。
 
 升级 SDK：`npm pack @edgeone/pages-blob`，把 `dist/index.js` 覆盖到 `_vendor/pages-blob.cjs`，跑一遍 `npm test`。
 
