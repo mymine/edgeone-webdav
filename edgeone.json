@@ -1,0 +1,20 @@
+{
+  "nodeVersion": "20.18.0",
+  "installCommand": "npm install",
+  "cloudFunctions": {
+    "nodejs": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/dav/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}
