@@ -2,9 +2,7 @@
   "nodeVersion": "20.18.0",
   "outputDirectory": "public",
   "cloudFunctions": {
-    "nodejs": {
-      "maxDuration": 60
-    }
+    "maxDuration": 60
   },
   "headers": [
     {

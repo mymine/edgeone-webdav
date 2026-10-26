@@ -79,7 +79,7 @@
     .then(function (data) {
       setBadge($('pingState'), 'ok', '已生效');
       $('node').textContent = (data.runtime && data.runtime.node) || '—';
-      $('mount').textContent = (data.route && data.route.mount) || '/dav';
+      $('mount').textContent = location.origin + ((data.route && data.route.base) || '/dav');
       $('store').textContent = (data.config && data.config.storeName) || '—';
       $('keys').textContent = (data.config && data.config.davEnvKeys && data.config.davEnvKeys.length)
         ? data.config.davEnvKeys.join(', ')
@@ -90,7 +90,7 @@
       setBadge($('auth'), authed ? 'ok' : 'bad', authed ? (cfg.authConfigured ? 'Basic Auth 已配置' : '匿名访问') : '未配置 DAV_USER / DAV_PASS');
 
       if (authed) {
-        var mount = (data.route && data.route.mount) || '/dav';
+        var mount = location.origin + ((data.route && data.route.base) || '/dav');
         $('davCard').style.display = '';
         $('davPre').textContent = '地址: ' + mount + '\n用户名: <你的 DAV_USER>\n密码:   <你的 DAV_PASS>';
         $('davLink').href = mount;
