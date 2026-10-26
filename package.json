@@ -1,6 +1,6 @@
 {
   "name": "edgeone-webdav",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "private": true,
   "type": "module",
   "description": "A WebDAV server running on EdgeOne Pages / Makers, backed by EdgeOne Blob storage",

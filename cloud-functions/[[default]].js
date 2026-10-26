@@ -6,8 +6,10 @@
 // 这里统一接管所有路径：命中挂载点前缀的交给 WebDAV，其余返回明确的 404 说明页
 // （而不是平台那句容易误导的 "The site does not exist"）。
 import { createEntry } from './dav/_lib/entry.js';
-import pingHandler from './ping.js';
+import { handlePing } from './dav/_lib/ping.js';
 
+// 根级唯一的路由文件。cloud-functions/ 下不再有任何其它 onRequest 文件，
+// 避免平台把"未匹配的路径"兜底给别的函数（实测会出现 /dav 返回 /ping 的内容）。
 const entry = createEntry();
 
 function esc(value) {
@@ -71,7 +73,24 @@ export default async function onRequest(context) {
 
   // /ping 正常由静态路由覆盖；这里再兜一层，防止 catch-all 抢走
   if (pathname === '/ping') {
-    return pingHandler(context);
+    return handlePing(context);
+  }
+
+  // 诊断端点：能返回这段 JSON 就说明根级 catch-all 生效了
+  if (pathname === '/__diag') {
+    const body = {
+      ok: true,
+      handler: 'cloud-functions/[[default]].js',
+      note: 'catch-all 生效：未匹配静态资源/具名函数的请求都会到这里',
+      base,
+      path: pathname,
+      host: request && request.headers ? request.headers.get('host') : null,
+      urlPath: request ? new URL(request.url).pathname : null,
+    };
+    return new Response(JSON.stringify(body, null, 2), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
   }
 
   // 根路径：静态 index.html 正常时不会走到这里；走到了也给个能用的落地页
@@ -82,7 +101,7 @@ export default async function onRequest(context) {
   return text(
     404,
     [
-      '404 Not Found',
+      '404 Not Found  [cloud-functions/[[default]].js]',
       '',
       `This path is outside the WebDAV mount point (${base}).`,
       `WebDAV 挂载点是 ${base}，请用 WebDAV 客户端连接：`,

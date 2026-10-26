@@ -156,16 +156,14 @@ edgeone makers deploy   # 部署
 ├── public/
 │   └── index.html                   # 静态自检页（/）
 ├── cloud-functions/
-│   ├── [[default]].js               # ⚠️ 根级 catch-all（必须在这个位置，见下）
-│   ├── ping.js                      # /ping 自检 JSON
+│   ├── [[default]].js               # ⚠️ 根级唯一路由文件（见下）
 │   └── dav/
-│       ├── index.js                 # /dav 与 /dav/
-│       ├── [[default]].js           # /dav/**（子目录这份是双保险）
 │       ├── _vendor/
 │       │   └── pages-blob.cjs       # @edgeone/pages-blob@0.0.18 的 dist 单文件（19 KB）
 │       └── _lib/
 │           ├── entry.js             # 环境变量 → config，缓存 handler
 │           ├── dav.js               # 核心：路径规范化 + 全部 WebDAV 方法
+│           ├── ping.js              # /ping 自检（命名导出，不注册路由）
 │           ├── store.js             # Blob 适配
 │           ├── memory-store.js      # 内存实现（本地测试）
 │           ├── paths.js             # 路径工具
@@ -176,11 +174,16 @@ edgeone makers deploy   # 部署
 
 只有导出了 `onRequest` 的文件才会注册成路由，`_lib/` / `_vendor/` 下的模块不会被暴露。
 
-> **为什么 catch-all 必须在根级**：平台构建时会检查 `cloud-functions/[[default]].js` 是否存在，据此决定是否启用 server handler 模式。只放在子目录时，构建日志会出现
-> `[cli] No server-handler detected, generating routes.json for pure project`，
-> 这时**只有「文件名即路由」的函数生效**（如 `ping.js` → `/ping`），`/dav/**` 这类 catch-all 不会注册，
-> 访问 `/dav` 会拿到平台那句容易误解的 `404 : NOT_FOUND The site does not exist`。
-> 根级 catch-all 内部再按 `DAV_BASE` 前缀分发，所以不会影响 `/ping` 与静态首页。
+> **为什么根级只留一个函数文件**（都是实测踩出来的）：
+>
+> 1. **catch-all 放在子目录不生效**：只放在 `cloud-functions/dav/[[default]].js` 时，构建日志出现
+>    `[cli] No server-handler detected, generating routes.json for pure project`，
+>    catch-all 不注册，`/dav` 直接拿到平台那句误导人的 `404 : NOT_FOUND The site does not exist`。
+> 2. **根级有第二个具名函数会被当成兜底**：同时存在 `ping.js` 和 `[[default]].js` 时，平台把未匹配路径
+>    兜底给了 `ping.js`，表现为访问 `/dav` 却返回 `/ping` 的 JSON（注意 `route.path` 显示的是 `/dav`）。
+>
+> 所以现在 `cloud-functions/` 下**只有一个 `onRequest` 文件** `[[default]].js`，其余全是普通模块：
+> `/ping`、`/__diag`、`/dav/**`、`/` 全部在它内部按路径分发。这样平台没有第二个可兜底的对象。
 
 升级 SDK：`npm pack @edgeone/pages-blob`，把 `dist/index.js` 覆盖到 `_vendor/pages-blob.cjs`，跑一遍 `npm test`。
 
